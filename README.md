@@ -2,16 +2,16 @@
 
 **AI-Based Spatiotemporal Monitoring of Illegal Artisanal Mining and Its Atmospheric Pollution Impact in Ghana**
 
-> MSc Data Science Thesis — University of Ghana, 2026  
+> MSc Data Science Thesis, University of Ghana, 2026  
 > Regions: Western & Ashanti | Study Period: 2019–2024 | 52 Districts
 
 ---
 
 ## Overview
 
-Galamsey — Ghana's term for illegal artisanal and small-scale gold mining — has caused widespread environmental degradation across the Western and Ashanti regions, contaminating water bodies, destroying forest cover, and releasing harmful atmospheric pollutants. Despite government enforcement efforts, monitoring the spatial and temporal spread of galamsey activity at district scale remains a significant data challenge.
+Galamsey, Ghana's term for illegal artisanal and small-scale gold mining, has caused widespread environmental degradation across the Western and Ashanti regions, contaminating water bodies, destroying forest cover, and releasing harmful atmospheric pollutants. Despite government enforcement efforts, monitoring the spatial and temporal spread of galamsey activity at district scale remains a significant data challenge.
 
-This thesis develops a machine learning pipeline that fuses **Sentinel-2 multispectral imagery** and **Sentinel-5P TROPOMI atmospheric data** extracted via **Google Earth Engine (GEE)** to construct a monthly **Pollution Risk Score (PRS)** for 52 districts from January 2019 to December 2024. Random Forest and XGBoost models are trained to identify districts at elevated risk, and results are delivered through an interactive **Streamlit dashboard**.
+This thesis develops a machine learning pipeline that fuses **Sentinel-2 multispectral imagery** and **Sentinel-5P TROPOMI atmospheric data** extracted via **Google Earth Engine (GEE)** to construct a monthly **Pollution Risk Score (PRS)** for 52 districts from January 2019 to December 2024. Random Forest and XGBoost models are trained on a strict chronological split and tested on held-out 2024 data, causal tests check the link to mining, and results are delivered through an interactive **Streamlit dashboard**.
 
 ---
 
@@ -57,7 +57,11 @@ Monthly district-level composites were computed in GEE by median-aggregating clo
 - Year-on-year change features for NDVI and BSI
 
 ### Pollution Risk Score (PRS)
-A composite index constructed as a weighted combination of normalised aerosol index, NO₂ column density, and SO₂ column density — scaled 0–1 across the full district-month panel. Higher PRS values indicate greater atmospheric pollution burden consistent with active mining.
+A composite index of the normalised pollutant measurements, scaled 0 to 1 across the full district-month panel:
+
+`PRS = 0.5 × aerosol index + 0.3 × NO₂ + 0.2 × SO₂`
+
+Higher PRS values indicate a greater atmospheric pollution burden. Because the PRS is built from the pollutant measurements, those measurements (and features derived from them) are excluded from the model inputs to avoid target leakage.
 
 ---
 
@@ -79,11 +83,17 @@ Google Earth Engine
     │   Machine Learning Models   │
     │  ├── Random Forest          │
     │  └── XGBoost                │
-    │  Evaluation: RMSE, R², MAE  │
+    │  Chronological split        │
+    │  Seasonal baseline          │
+    │  Evaluation: R², Spearman   │
     └─────────────────────────────┘
               │
               ▼
     SHAP Explainability (feature importance + summary plots)
+              │
+              ▼
+    Causal tests (fixed effects, placebo, fire control, wind,
+    difference-in-differences for the July 2021 crackdown)
               │
               ▼
     District Risk Tiering (Critical / High / Moderate / Low)
@@ -97,7 +107,7 @@ Google Earth Engine
 ## Repository Structure
 
 ```
-galamsey_thesis/
+galamsey-monitoring/
 │
 ├── dashboard.py                       # Streamlit interactive dashboard
 │
@@ -124,6 +134,8 @@ galamsey_thesis/
 │   ├── 09_predicted_vs_actual.png
 │   └── 11_regional_trend.png
 │
+├── requirements.txt
+├── .gitignore
 └── README.md
 ```
 
@@ -131,12 +143,16 @@ galamsey_thesis/
 
 ## Key Findings
 
-- **52 districts** monitored across the Western and Ashanti regions over 72 monthly time steps.
-- Aerosol index is the strongest individual predictor of PRS, followed by NDVI change and BSI.
-- **Dry season months (Nov–Mar)** consistently show elevated PRS, reflecting intensified mining activity during low-rainfall periods.
-- A measurable post-enforcement decline in mean PRS was observed following Ghana's July 2021 crackdown, though several critical districts showed renewed increases by 2023–2024.
-- The top-ranked **Critical** risk districts are concentrated in the Ashanti Region, with Asokore Mampong Municipal and KMA recording the highest mean PRS values over the study period.
-- SHAP analysis confirms that the aerosol index, 3-month rolling aerosol mean, and NDVI are the dominant model drivers.
+- **Prediction:** on held-out 2024 data, XGBoost reached **R² 0.34** and **Spearman 0.72**, slightly above a seasonal baseline (R² 0.32). The model ranks districts well, but much of the month-to-month variation is driven by time and season.
+- **Drivers (SHAP):** the top features are year (0.063), dry season (0.041) and month sine (0.031). BSI (bare soil, 0.017) is the strongest land-surface signal.
+- **Season:** dry season months (Nov to Mar) consistently show higher PRS.
+- **July 2021 crackdown:** a difference-in-differences analysis found **no evidence** that the enforcement campaign reduced PRS. The parallel-trends check (p = 0.71) supports the design.
+- **Robustness:** the link to mining was tested with district fixed effects, a placebo test, a NASA FIRMS fire control and a wind test.
+- **Highest mean PRS:** Asokore Mampong Municipal, KMA and Kwabre, all in the Ashanti Region.
+
+### A note on model evaluation
+
+An early version of the model scored R² 0.93. That score came from target leakage: the inputs included the same pollutant measurements used to build the PRS, so the model was partly predicting its own inputs. After removing those features and switching to a strict chronological split, the honest test score is R² 0.34. The notebook in this repository still shows the earlier run and will be replaced with the final version.
 
 ---
 
@@ -159,11 +175,9 @@ git clone https://github.com/Wayne3615/galamsey-monitoring.git
 cd galamsey-monitoring
 
 # 2. Install dependencies
-pip install streamlit pandas numpy matplotlib
+pip install -r requirements.txt
 
-# 3. Update DATA_DIR and OUT_DIR paths in dashboard.py to match your local paths
-
-# 4. Launch the dashboard
+# 3. Launch the dashboard
 streamlit run dashboard.py
 ```
 
@@ -180,6 +194,9 @@ streamlit run dashboard.py
 | `scikit-learn` | Random Forest model and evaluation metrics |
 | `xgboost` | Gradient boosting model |
 | `shap` | Model explainability (SHAP values) |
+| `seaborn`, `scipy` | Statistical plots and tests |
+| `statsmodels` | Fixed effects and difference-in-differences regressions |
+| `geopandas` | District boundaries and maps |
 
 ---
 
@@ -210,4 +227,4 @@ This repository is shared for academic and research purposes. Please contact the
 
 ---
 
-*Data: Sentinel-2 (COPERNICUS/S2_SR) and Sentinel-5P TROPOMI (COPERNICUS/S5P/OFFL) via Google Earth Engine. Western & Ashanti Regions, Ghana. MSc Data Science Thesis — University of Ghana, 2026.*
+*Data: Sentinel-2 (COPERNICUS/S2_SR) and Sentinel-5P TROPOMI (COPERNICUS/S5P/OFFL) via Google Earth Engine. Western & Ashanti Regions, Ghana. MSc Data Science Thesis, University of Ghana, 2026.*

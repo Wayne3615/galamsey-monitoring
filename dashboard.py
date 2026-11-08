@@ -5,13 +5,15 @@ import matplotlib.pyplot as plt
 import os
 
 st.set_page_config(
-    page_title = "Galamsey Pollution Monitor — Ghana",
+    page_title = "Galamsey Pollution Monitor | Ghana",
     page_icon  = "🌍",
     layout     = "wide"
 )
 
-DATA_DIR = r"C:\Users\stunn\galamsey_thesis\data"
-OUT_DIR  = r"C:\Users\stunn\galamsey_thesis\outputs"
+# Paths are relative to this file, so the app runs from any folder
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, "data")
+OUT_DIR  = os.path.join(BASE_DIR, "outputs")
 
 @st.cache_data
 def load_data():
@@ -170,5 +172,5 @@ st.caption(
     "Data: Sentinel-2 (COPERNICUS/S2_SR) and Sentinel-5P TROPOMI "
     "(COPERNICUS/S5P/OFFL) via Google Earth Engine. "
     "52 districts, Western & Ashanti Regions, Ghana. "
-    "MSc Data Science Thesis — University of Ghana, 2026."
+    "MSc Data Science Thesis, University of Ghana, 2026."
 )

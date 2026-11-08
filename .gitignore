@@ -1,0 +1,22 @@
+# Local tool and editor settings
+.claude/
+CLAUDE.md
+.vscode/
+.idea/
+
+# Secrets
+.env
+*.env
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS files
+.DS_Store
+Thumbs.db
